@@ -24,7 +24,7 @@
 #include "debug/debug.h"
 #include "version.h"
 
-#define CLIB_WIKI_URL "https://github.com/clibs/clib/wiki/Packages"
+#define CLIB_WIKI_URL "https://github.com/tencherry10/clib/wiki/Packages"
 #define CLIB_SEARCH_CACHE "clib-search.cache"
 #define CLIB_SEARCH_CACHE_TIME 1000 * 60 * 60 * 5
 
