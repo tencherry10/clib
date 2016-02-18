@@ -47,7 +47,7 @@ $ sudo make install
 
   You should use `clib(1)` to fetch these files for you and check them into your repository, the end-user and contributors should not require having `clib(1)` installed. This allows clib(1) to fit into any new or existing C workflow without friction.
 
-  The wiki [listing of packages](https://github.com/clibs/clib/wiki/Packages) acts as the "registry" and populates the `clib-search(1)` results.
+  The wiki [listing of packages](https://github.com/tencherry10/clib/wiki/Packages) acts as the "registry" and populates the `clib-search(1)` results.
 
 ## Usage
 
