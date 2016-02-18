@@ -1,3 +1,14 @@
+# modified clib
+
+DONE
+- [x] search for clib-* relative to clib executable path [linux]
+- [x] change it to point to my own package list
+
+TODO
+- [ ] need to test clib-* relative to clib executable path under windows
+- [ ] refactor the system so that clib-search calls clib-search-<source> where source is github / bitbucket or some other private source
+- [ ] likewise refactor the clib-install system so that there are clib-install-source where source is github / bitbucket or some other private source
+
 # clib(1)
 
   [![Build Status](https://travis-ci.org/clibs/clib.svg?branch=master)](https://travis-ci.org/clibs/clib)
