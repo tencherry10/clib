@@ -3,19 +3,19 @@ CC     ?= cc
 PREFIX ?= /usr/local
 
 ifeq ($(shell uname -o),Cygwin)
-BINS    = clib.exe clib-install.exe clib-search.exe
+BINS    = clib.exe clib-install.exe clib-search.exe clib-search-github.exe
 LDFLAGS = -lcurl
 CP      = cp -f
 RM      = rm -f
 MKDIR   = mkdir -p
 else ifeq ($(OS),Windows_NT)
-BINS    = clib.exe clib-install.exe clib-search.exe
+BINS    = clib.exe clib-install.exe clib-search.exe clib-search-github.exe
 LDFLAGS = -lcurldll
 CP      = copy /Y
 RM      = del /Q /S
 MKDIR   = mkdir
 else
-BINS    = clib clib-install clib-search
+BINS    = clib clib-install clib-search clib-search-github
 LDFLAGS = -lcurl
 CP      = cp -f
 RM      = rm -f

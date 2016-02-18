@@ -1,11 +1,3 @@
-
-//
-// clib-search.c
-//
-// Copyright (c) 2012-2014 clib authors
-// MIT licensed
-//
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,68 +10,38 @@
 #include "asprintf/asprintf.h"
 #include "wiki-registry/wiki-registry.h"
 #include "clib-package/clib-package.h"
-#include "console-colors/console-colors.h"
 #include "strdup/strdup.h"
 #include "logger/logger.h"
 #include "debug/debug.h"
+#include "parson/parson.h"
 #include "version.h"
 
-#define CLIB_WIKI_URL "https://github.com/tencherry10/clib/wiki/Packages"
 #define CLIB_SEARCH_CACHE "clib-search.cache"
 #define CLIB_SEARCH_CACHE_TIME 1000 * 60 * 60 * 5
 
-debug_t debugger;
+const char * programstr = "clib-search-github";
 
-static int opt_color;
-static int opt_cache;
+static debug_t    debugger;
+static int        opt_cache;
+static char       *opt_url = "https://github.com/tencherry10/clib/wiki/Packages";
 
-static void
-setopt_nocolor(command_t *self) {
-    opt_color = 0;
-}
-
-static void
-setopt_nocache(command_t *self) {
+static void setup_args(command_t *self, int argc, char **argv) {
+  void setopt_nocache(command_t *self) {
     opt_cache = 0;
+    debug(&debugger, "set enable cache: %d", opt_cache);
+  }
+  void setopt_url(command_t *self) {
+    opt_url = (char *) self->arg;
+    debug(&debugger, "set mkopts: %s", opt_url);
+  }
+  self->usage = "[options] [query ...]";
+  command_option(self, "-c", "--skip-cache",  "skip the search cache", setopt_nocache);  
+  command_option(self, "-u", "--url [url]",   "set the url to fetch from", setopt_nocache);  
+  command_parse(self, argc, argv);
+  for (int i = 0; i < self->argc; i++) case_lower(self->argv[i]);  
 }
 
-static int
-matches(int count, char *args[], wiki_package_t *pkg) {
-  // Display all packages if there's no query
-  if (0 == count) return 1;
-
-  char *name = NULL;
-  char *description = NULL;
-
-  name = clib_package_parse_name(pkg->repo);
-  if (NULL == name) goto fail;
-  case_lower(name);
-  for (int i = 0; i < count; i++) {
-    if (strstr(name, args[i])) {
-      free(name);
-      return 1;
-    }
-  }
-
-  description = strdup(pkg->description);
-  if (NULL == description) goto fail;
-  case_lower(description);
-  for (int i = 0; i < count; i++) {
-    if (strstr(description, args[i])) {
-      free(description);
-      free(name);
-      return 1;
-    }
-  }
-
-fail:
-  free(name);
-  free(description);
-  return 0;
-}
-
-static char *
-clib_search_file(void) {
+static char * clib_search_file(void) {
   char *file = NULL;
   char *temp = NULL;
 
@@ -102,8 +64,7 @@ clib_search_file(void) {
   return file;
 }
 
-static char *
-wiki_html_cache() {
+static char * wiki_html_cache() {
   char *cache_file = clib_search_file();
   if (NULL == cache_file) return NULL;
 
@@ -129,8 +90,8 @@ wiki_html_cache() {
   }
 
 set_cache:;
-  debug(&debugger, "setting cache (%s) from %s", cache_file, CLIB_WIKI_URL);
-  http_get_response_t *res = http_get(CLIB_WIKI_URL);
+  debug(&debugger, "setting cache (%s) from %s", cache_file, opt_url);
+  http_get_response_t *res = http_get(opt_url);
   if (!res->ok) return NULL;
 
   char *html = strdup(res->data);
@@ -144,31 +105,17 @@ set_cache:;
   return html;
 }
 
-int
-main(int argc, char *argv[]) {
-  opt_color = 1;
-  opt_cache = 1;
-
-  debug_init(&debugger, "clib-search");
-
-  command_t program;
-  command_init(&program, "clib-search", CLIB_VERSION);
-  program.usage = "[options] [query ...]";
-
-  command_option(&program, "-n", "--no-color", "don't colorize output", setopt_nocolor);
-  command_option(&program, "-c", "--skip-cache", "skip the search cache", setopt_nocache);
-  
-  command_parse(&program, argc, argv);
-
-  for (int i = 0; i < program.argc; i++) case_lower(program.argv[i]);
-
-  // set color theme
-  cc_color_t fg_color_highlight = opt_color
-    ? CC_FG_DARK_CYAN
-    : CC_FG_NONE;
-  cc_color_t fg_color_text = opt_color
-    ? CC_FG_DARK_GRAY
-    : CC_FG_NONE;
+int main(int argc, char *argv[]) {
+  command_t  program;  
+  JSON_Value  *rootval    = json_value_init_object();
+  JSON_Object *rootobj    = json_value_get_object(rootval);
+  JSON_Value  *pkgarrval  = json_value_init_array();
+  JSON_Array  *pkgarr     = json_value_get_array(pkgarrval);
+  char *serialized_string = NULL;
+  opt_cache               = 1;
+  debug_init(&debugger, programstr);
+  command_init(&program, programstr, CLIB_VERSION);
+  setup_args(&program, argc, argv);
 
   char *html = wiki_html_cache();
   if (NULL == html) {
@@ -176,31 +123,35 @@ main(int argc, char *argv[]) {
     logger_error("error", "failed to fetch wiki HTML");
     return 1;
   }
-
   list_t *pkgs = wiki_registry_parse(html);
   free(html);
-
+  
   debug(&debugger, "found %zu packages", pkgs->len);
-
+  
   list_node_t *node;
   list_iterator_t *it = list_iterator_new(pkgs, LIST_HEAD);
-  printf("\n");
   while ((node = list_iterator_next(it))) {
+    JSON_Value  *pkgobjval  = json_value_init_object();
+    JSON_Object *pkgobj     = json_value_get_object(pkgobjval);    
     wiki_package_t *pkg = (wiki_package_t *) node->val;
-    if (matches(program.argc, program.argv, pkg)) {
-      cc_fprintf(fg_color_highlight, stdout, "  %s\n", pkg->repo);
-      printf("  url: ");
-      cc_fprintf(fg_color_text, stdout, "%s\n", pkg->href);
-      printf("  desc: ");
-      cc_fprintf(fg_color_text, stdout, "%s\n", pkg->description);
-      printf("\n");
-    } else {
-      debug(&debugger, "skipped package %s", pkg->repo);
-    }
+    json_object_set_string(pkgobj, "repo", pkg->repo);
+    json_object_set_string(pkgobj, "url", pkg->href);
+    json_object_set_string(pkgobj, "desc", pkg->description);
     wiki_package_free(pkg);
+    json_array_append_value(pkgarr, pkgobjval);
   }
   list_iterator_destroy(it);
   list_destroy(pkgs);
+  
+  json_object_set_value(rootobj, "pkglist", pkgarrval);
+  json_object_set_string(rootobj, "program", programstr);
+  
+  serialized_string = json_serialize_to_string(rootval);
+  printf("%s\n", serialized_string);
+  
+  json_free_serialized_string(serialized_string);
+  json_value_free(rootval);
+  json_value_free(pkgarrval);
   command_free(&program);
   return 0;
 }
