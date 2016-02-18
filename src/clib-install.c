@@ -26,6 +26,7 @@ debug_t debugger;
 
 struct options {
   const char *dir;
+  const char *mkopts;
   int verbose;
   int dev;
   int save;
@@ -37,6 +38,12 @@ static struct options opts;
 /**
  * Option setters.
  */
+
+static void
+setopt_mkopt(command_t *self) {
+  opts.mkopts = (char *) self->arg;
+  debug(&debugger, "set mkopts: %s", opts.mkopts);
+}
 
 static void
 setopt_dir(command_t *self) {
@@ -171,8 +178,12 @@ executable(clib_package_t *pkg) {
 
   free(command);
   command = NULL;
-
-  E_FORMAT(&command, "cd %s && %s", dir, pkg->install);
+  
+  if(opts.mkopts != NULL) {
+    E_FORMAT(&command, "cd %s && %s %s", dir, pkg->install, opts.mkopts);
+  } else {
+    E_FORMAT(&command, "cd %s && %s", dir, pkg->install);
+  }
   debug(&debugger, "command: %s", command);
   rc = system(command);
 
@@ -288,6 +299,7 @@ main(int argc, char *argv[]) {
 #endif
   opts.verbose = 1;
   opts.dev = 0;
+  opts.mkopts = NULL;
 
   debug_init(&debugger, "clib-install");
 
@@ -299,6 +311,11 @@ main(int argc, char *argv[]) {
 
   program.usage = "[options] [name ...]";
 
+  command_option(&program
+    , "-m"
+    , "--mkopts <make args>"
+    , "pass in extra make options during install"
+    , setopt_mkopt);  
   command_option(&program
     , "-o"
     , "--out <dir>"
