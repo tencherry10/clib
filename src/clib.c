@@ -9,6 +9,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#ifdef __linux__ 
+#include <unistd.h>
+#include <sys/stat.h>
+#include <linux/limits.h>
+#include <libgen.h>
+#endif
 #include "trim/trim.h"
 #include "asprintf/asprintf.h"
 #include "which/which.h"
@@ -107,7 +113,32 @@ main(int argc, const char **argv) {
 #endif
   debug(&debugger, "command '%s'", cmd);
 
+#ifdef __linux__ 
+  // first try path of executable if linux
+  char linkname[PATH_MAX];
+  ssize_t r = readlink("/proc/self/exe", linkname, PATH_MAX);
+
+  if (r < 0) {
+    perror("lstat");
+    exit(EXIT_FAILURE);
+  }
+  if (r >= PATH_MAX) {
+    fprintf(stderr, "symlink size >= PATH_MAX");
+    exit(EXIT_FAILURE);
+  }
+  
+  linkname[r] = '\0';
+  //~ printf("'%s' points to '%s'\n", "/proc/self/exe", dirname(linkname));
+  
+  bin = which_path(command, dirname(linkname));
+  if (NULL == bin) {
+    // then if it doesn't exist in the same path, try general search path
+    bin = which(command);
+  }
+#else
   bin = which(command);
+#endif    
+  
   if (NULL == bin) {
     fprintf(stderr, "Unsupported command \"%s\"\n", cmd);
     goto cleanup;
