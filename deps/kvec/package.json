@@ -1,0 +1,9 @@
+{
+  "name": "kvec",
+  "version": "0.0.1",
+  "repo": "tencherry10/kvec",
+  "description": "clib enabled kvec (from klib)",
+  "keywords": ["data structure"],
+  "license": "MIT",
+  "src": ["kvec.h"]
+}
