@@ -145,9 +145,11 @@ int main(int argc, char *argv[]) {
     JSON_Value  *pkgobjval  = json_value_init_object();
     JSON_Object *pkgobj     = json_value_get_object(pkgobjval);    
     wiki_package_t *pkg = (wiki_package_t *) node->val;
-    json_object_set_string(pkgobj, "repo", pkg->repo);
-    json_object_set_string(pkgobj, "url", pkg->href);
-    json_object_set_string(pkgobj, "desc", pkg->description);
+    json_object_set_string(pkgobj, "repo",    pkg->repo);
+    json_object_set_string(pkgobj, "url",     pkg->href);
+    json_object_set_string(pkgobj, "desc",    pkg->description);
+    json_object_set_string(pkgobj, "source",  opt_source);
+    json_object_set_string(pkgobj, "type",    "github");    
     wiki_package_free(pkg);
     json_array_append_value(pkgarr, pkgobjval);
   }
