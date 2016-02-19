@@ -21,6 +21,7 @@
 typedef kvec_t(char*) string_vec_t;
 
 static debug_t  debugger;
+static int      opt_json  = 0;
 static int      opt_color = 1;
 static int      opt_cache = 1;
 static cc_color_t fg_color_highlight  = CC_FG_DARK_CYAN;
@@ -35,9 +36,15 @@ static void setup_args(command_t *self, int argc, char **argv) {
     opt_color = 0;
     debug(&debugger, "set opt_color = %d", opt_color);
   }
+  void setopt_json(command_t *self) {
+    opt_json = 1;
+    debug(&debugger, "set opt_json = %d", opt_json);
+  }
+  
   self->usage = "[options] [query ...]";
   command_option(self, "-c", "--skip-cache",  "skip the search cache", setopt_nocache);  
   command_option(self, "-n", "--no-color",    "don't colorize output", setopt_nocolor);
+  command_option(self, "-j", "--json",        "outputs raw json data instead", setopt_json);
   command_parse(self, argc, argv);
   for (int i = 0; i < self->argc; i++) case_lower(self->argv[i]);  
   // set color theme
@@ -142,6 +149,7 @@ int main(int argc, char *argv[]) {
   
   sds s = sdsempty();
   JSON_Value * allpkgs = json_value_init_array();
+  JSON_Value * outpkgs = json_value_init_array();
   for(int i = 0 ; i < kv_size(cmd_list) ; i++) {
     char *  cmd = kv_A(cmd_list, i);
     char    cmdbuf[strlen(cmd) + 16];
@@ -158,17 +166,29 @@ int main(int argc, char *argv[]) {
   for(size_t i = 0 ; i < json_array_get_count(json_array(allpkgs)) ; i++) {
     JSON_Object * pkg = json_array_get_object(json_array(allpkgs), i);
     if (matches(program.argc, program.argv, pkg)) {
-      cc_fprintf(fg_color_highlight, stdout, "  %s\n", json_object_get_string(pkg, "repo"));
-      printf("  url: ");
-      cc_fprintf(fg_color_text, stdout, "%s\n", json_object_get_string(pkg, "url"));
-      printf("  desc: ");
-      cc_fprintf(fg_color_text, stdout, "%s\n", json_object_get_string(pkg, "desc"));
-      printf("\n");
+      if(opt_json) {
+        json_array_append_value(
+          json_array(outpkgs), 
+          json_value_deep_copy(json_array_get_value(json_array(allpkgs), i)));
+      } else {
+        cc_fprintf(fg_color_highlight, stdout, "  %s\n", json_object_get_string(pkg, "repo"));
+        printf("  url: ");
+        cc_fprintf(fg_color_text, stdout, "%s\n", json_object_get_string(pkg, "url"));
+        printf("  desc: ");
+        cc_fprintf(fg_color_text, stdout, "%s\n", json_object_get_string(pkg, "desc"));
+        printf("\n");
+      }
     } else {
       debug(&debugger, "skipped package %s", json_object_get_string(pkg, "repo"));
     }
   }
-  
+  if(opt_json) {
+    char *json_ser = json_serialize_to_string(outpkgs);
+    printf("%s\n", json_ser);
+    json_free_serialized_string(json_ser);
+  }
+    
+  json_value_free(outpkgs);
   json_value_free(allpkgs);
   sdsfree(s);
   for(int i = 0 ; i < kv_size(cmd_list) ; i++) {
