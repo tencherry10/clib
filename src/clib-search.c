@@ -1,11 +1,3 @@
-
-//
-// clib-search.c
-//
-// Copyright (c) 2012-2014 clib authors
-// MIT licensed
-//
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,37 +6,45 @@
 #include "commander/commander.h"
 #include "tempdir/tempdir.h"
 #include "fs/fs.h"
-#include "http-get/http-get.h"
 #include "asprintf/asprintf.h"
-#include "wiki-registry/wiki-registry.h"
 #include "clib-package/clib-package.h"
 #include "console-colors/console-colors.h"
 #include "strdup/strdup.h"
 #include "logger/logger.h"
 #include "debug/debug.h"
+#include "kvec/kvec.h"
+#include "sds/sds.h"
+#include "trim/trim.h"
+#include "parson/parson.h"
 #include "version.h"
 
-#define CLIB_WIKI_URL "https://github.com/tencherry10/clib/wiki/Packages"
-#define CLIB_SEARCH_CACHE "clib-search.cache"
-#define CLIB_SEARCH_CACHE_TIME 1000 * 60 * 60 * 5
+typedef kvec_t(char*) string_vec_t;
 
-debug_t debugger;
+static debug_t  debugger;
+static int      opt_color = 1;
+static int      opt_cache = 1;
 
-static int opt_color;
-static int opt_cache;
-
-static void
-setopt_nocolor(command_t *self) {
-    opt_color = 0;
-}
-
-static void
-setopt_nocache(command_t *self) {
+static void setup_args(command_t *self, int argc, char **argv) {
+  void setopt_nocache(command_t *self) {
     opt_cache = 0;
+    debug(&debugger, "set enable cache: %d", opt_cache);
+  }
+  void setopt_nocolor(command_t *self) {
+    opt_color = 0;
+    debug(&debugger, "set opt_color = %d", opt_color);
+  }
+  self->usage = "[options] [query ...]";
+  command_option(self, "-c", "--skip-cache",  "skip the search cache", setopt_nocache);  
+  command_option(self, "-n", "--no-color",    "don't colorize output", setopt_nocolor);
+  command_parse(self, argc, argv);
+  for (int i = 0; i < self->argc; i++) case_lower(self->argv[i]);  
+  //~ // set color theme
+  //~ cc_color_t fg_color_highlight = opt_color ? CC_FG_DARK_CYAN : CC_FG_NONE;
+  //~ cc_color_t fg_color_text = opt_color ? CC_FG_DARK_GRAY : CC_FG_NONE;  
 }
 
-static int
-matches(int count, char *args[], wiki_package_t *pkg) {
+#if 0
+static int matches(int count, char *args[], wiki_package_t *pkg) {
   // Display all packages if there's no query
   if (0 == count) return 1;
 
@@ -77,130 +77,80 @@ fail:
   free(description);
   return 0;
 }
+#endif
 
-static char *
-clib_search_file(void) {
-  char *file = NULL;
-  char *temp = NULL;
-
-  temp = gettempdir();
-  if (NULL == temp) {
-    logger_error("error", "gettempdir() out of memory");
-    return NULL;
-  }
-
-  debug(&debugger, "tempdir: %s", temp);
-  int rc = asprintf(&file, "%s/%s", temp, CLIB_SEARCH_CACHE);
-  if (-1 == rc) {
-    logger_error("error", "asprintf() out of memory");
-    free(temp);
-    return NULL;
-  }
-
-  free(temp);
-  debug(&debugger, "search file: %s", file);
-  return file;
-}
-
-static char *
-wiki_html_cache() {
-  char *cache_file = clib_search_file();
-  if (NULL == cache_file) return NULL;
-
-  if (0 == opt_cache) {
-    debug(&debugger, "skipping cache file (%s)", cache_file);
-    goto set_cache;
-  }
-
-  fs_stats *stats = fs_stat(cache_file);
-  if (NULL == stats) goto set_cache;
-
-  long now = (long) time(NULL);
-  long modified = stats->st_mtime;
-  long delta = now - modified;
-
-  debug(&debugger, "cache delta %d (%d - %d)", delta, now, modified);
-  free(stats);
-
-  if (delta < CLIB_SEARCH_CACHE_TIME) {
-    char *data = fs_read(cache_file);
-    free(cache_file);
-    return data;
-  }
-
-set_cache:;
-  debug(&debugger, "setting cache (%s) from %s", cache_file, CLIB_WIKI_URL);
-  http_get_response_t *res = http_get(CLIB_WIKI_URL);
-  if (!res->ok) return NULL;
-
-  char *html = strdup(res->data);
-  if (NULL == html) return NULL;
-  http_get_free(res);
-
-  if (NULL == html) return html;
-  fs_write(cache_file, html);
-  debug(&debugger, "wrote cache (%s)", cache_file);
-  free(cache_file);
-  return html;
-}
-
-int
-main(int argc, char *argv[]) {
-  opt_color = 1;
-  opt_cache = 1;
-
-  debug_init(&debugger, "clib-search");
-
-  command_t program;
-  command_init(&program, "clib-search", CLIB_VERSION);
-  program.usage = "[options] [query ...]";
-
-  command_option(&program, "-n", "--no-color", "don't colorize output", setopt_nocolor);
-  command_option(&program, "-c", "--skip-cache", "skip the search cache", setopt_nocache);
+string_vec_t exec_that_starts_with(const char *prefix) {
+  FILE          *cmdfp;
+  char          cmdlinebuf[1024] = {0};
+  const char    *cmdfmt = "IFS=:; find $PATH -maxdepth 1 -executable -type f -printf '%%f\\n' | sort | grep -e \"^%s\"";
+  char          *cmdstr = NULL;
+  char          *cmd;
+  string_vec_t  ret     = {0,0,0};
   
-  command_parse(&program, argc, argv);
-
-  for (int i = 0; i < program.argc; i++) case_lower(program.argv[i]);
-
-  // set color theme
-  cc_color_t fg_color_highlight = opt_color
-    ? CC_FG_DARK_CYAN
-    : CC_FG_NONE;
-  cc_color_t fg_color_text = opt_color
-    ? CC_FG_DARK_GRAY
-    : CC_FG_NONE;
-
-  char *html = wiki_html_cache();
-  if (NULL == html) {
-    command_free(&program);
-    logger_error("error", "failed to fetch wiki HTML");
-    return 1;
+  if(-1 == asprintf(&cmdstr, cmdfmt, prefix)) 
+    return ret;
+  
+  if( (cmdfp = popen(cmdstr, "r")) == NULL) 
+    goto cleanup;
+  
+  while(fgets(cmdlinebuf, sizeof(cmdlinebuf)-1, cmdfp) != NULL) {
+    if((cmd = strdup(trim(cmdlinebuf))) == NULL)
+      goto cleanup_both;
+    debug(&debugger, "cmd: %s", cmd);
+    kv_push(char*, ret, cmd);
   }
 
-  list_t *pkgs = wiki_registry_parse(html);
-  free(html);
+  cleanup_both:  
+  pclose(cmdfp);
+cleanup:
+  free(cmdstr);
+  return ret;
+}
 
-  debug(&debugger, "found %zu packages", pkgs->len);
-
-  list_node_t *node;
-  list_iterator_t *it = list_iterator_new(pkgs, LIST_HEAD);
-  printf("\n");
-  while ((node = list_iterator_next(it))) {
-    wiki_package_t *pkg = (wiki_package_t *) node->val;
-    if (matches(program.argc, program.argv, pkg)) {
-      cc_fprintf(fg_color_highlight, stdout, "  %s\n", pkg->repo);
-      printf("  url: ");
-      cc_fprintf(fg_color_text, stdout, "%s\n", pkg->href);
-      printf("  desc: ");
-      cc_fprintf(fg_color_text, stdout, "%s\n", pkg->description);
-      printf("\n");
-    } else {
-      debug(&debugger, "skipped package %s", pkg->repo);
+sds run_cmd(sds s, const char * cmd) {
+  FILE          *cmdfp;
+  sdsclear(s);
+  
+  if( (cmdfp = popen(cmd, "r")) == NULL) 
+    return s;
+  
+  while(!feof(cmdfp)) {
+    s = sdsMakeRoomFor(s, 4096);
+    size_t oldlen = sdslen(s);
+    size_t numread = fread(s + oldlen, 1, 4096, cmdfp);
+    if(numread < 0) {
+      sdsclear(s);
+      return s;
     }
-    wiki_package_free(pkg);
+    sdsIncrLen(s, numread);
   }
-  list_iterator_destroy(it);
-  list_destroy(pkgs);
+  return s;
+}
+
+int main(int argc, char *argv[]) {
+  command_t program;
+  debug_init(&debugger, "clib-search");
+  command_init(&program, "clib-search", CLIB_VERSION);
+  setup_args(&program, argc, argv);
+  string_vec_t cmd_list = exec_that_starts_with("clib-search-");
+  
+  sds s = sdsempty();
+  for(int i = 0 ; i < kv_size(cmd_list) ; i++) {
+    char *  cmd = kv_A(cmd_list, i);
+    char    cmdbuf[strlen(cmd) + 16];
+    sprintf(cmdbuf, "%s %s", cmd, opt_cache ? "" : "-c");
+    s = run_cmd(s, cmdbuf);
+    JSON_Value * parsed = json_parse_string(s);
+    printf("%s\n", s);
+    json_value_free(parsed);
+  }
+  
+  
+  for(int i = 0 ; i < kv_size(cmd_list) ; i++) {
+    free(kv_A(cmd_list, i));
+  }
+  
+  kv_destroy(cmd_list);
   command_free(&program);
   return 0;
 }
