@@ -1,0 +1,9 @@
+{
+  "name": "sds",
+  "version": "2.0.0",
+  "repo": "tencherry10/sds",
+  "description": "Simple Dynamic Strings library for C",
+  "keywords": ["strings", "string"],
+  "license": "BSD",
+  "src": ["sds.h", "sds.c", "sdsalloc.h"]
+}
