@@ -18,6 +18,7 @@
 #include "logger/logger.h"
 #include "debug/debug.h"
 #include "parson/parson.h"
+#include "sds/sds.h"
 #include "str-concat/str-concat.h"
 #include "str-replace/str-replace.h"
 #include "version.h"
@@ -26,7 +27,7 @@ debug_t debugger;
 
 struct options {
   const char *dir;
-  const char *mkopts;
+  sds mkopts;
   int verbose;
   int dev;
   int save;
@@ -41,7 +42,8 @@ static struct options opts;
 
 static void
 setopt_mkopt(command_t *self) {
-  opts.mkopts = (char *) self->arg;
+  opts.mkopts = sdscat(opts.mkopts, self->arg);
+  opts.mkopts = sdscat(opts.mkopts, " ");  
   debug(&debugger, "set mkopts: %s", opts.mkopts);
 }
 
@@ -179,7 +181,7 @@ executable(clib_package_t *pkg) {
   free(command);
   command = NULL;
   
-  if(opts.mkopts != NULL) {
+  if(sdslen(opts.mkopts) > 0) {
     E_FORMAT(&command, "cd %s && %s %s", dir, pkg->install, opts.mkopts);
   } else {
     E_FORMAT(&command, "cd %s && %s", dir, pkg->install);
@@ -299,7 +301,7 @@ main(int argc, char *argv[]) {
 #endif
   opts.verbose = 1;
   opts.dev = 0;
-  opts.mkopts = NULL;
+  opts.mkopts = sdsempty();
 
   debug_init(&debugger, "clib-install");
 
@@ -348,7 +350,8 @@ main(int argc, char *argv[]) {
   int code = 0 == program.argc
     ? install_local_packages()
     : install_packages(program.argc, program.argv);
-
+  
+  sdsfree(opts.mkopts);
   command_free(&program);
   return code;
 }
