@@ -16,14 +16,12 @@
 #include "parson/parson.h"
 #include "version.h"
 
-#define CLIB_SEARCH_CACHE "clib-search.cache"
-#define CLIB_SEARCH_CACHE_TIME 1000 * 60 * 60 * 5
-
-const char * programstr = "clib-search-github";
-
+const char        *clib_search_cache      = "clib-search.cache";
+const int         clib_search_cache_time  = 1000 * 60 * 60 * 5;
+const char        *programstr             = "clib-search-github";
 static debug_t    debugger;
 static int        opt_cache;
-static char       *opt_url = "https://github.com/tencherry10/clib/wiki/Packages";
+static char       *opt_url                = "https://github.com/tencherry10/clib/wiki/Packages";
 
 static void setup_args(command_t *self, int argc, char **argv) {
   void setopt_nocache(command_t *self) {
@@ -52,7 +50,7 @@ static char * clib_search_file(void) {
   }
 
   debug(&debugger, "tempdir: %s", temp);
-  int rc = asprintf(&file, "%s/%s", temp, CLIB_SEARCH_CACHE);
+  int rc = asprintf(&file, "%s/%s", temp, clib_search_cache);
   if (-1 == rc) {
     logger_error("error", "asprintf() out of memory");
     free(temp);
@@ -83,7 +81,7 @@ static char * wiki_html_cache() {
   debug(&debugger, "cache delta %d (%d - %d)", delta, now, modified);
   free(stats);
 
-  if (delta < CLIB_SEARCH_CACHE_TIME) {
+  if (delta < clib_search_cache_time) {
     char *data = fs_read(cache_file);
     free(cache_file);
     return data;
