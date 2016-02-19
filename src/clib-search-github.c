@@ -16,12 +16,14 @@
 #include "parson/parson.h"
 #include "version.h"
 
-const char        *clib_search_cache      = "clib-search.cache";
+
 const int         clib_search_cache_time  = 1000 * 60 * 60 * 5;
 const char        *programstr             = "clib-search-github";
 static debug_t    debugger;
 static int        opt_cache;
-static char       *opt_url                = "https://github.com/tencherry10/clib/wiki/Packages";
+static char       *opt_url                = "https://github.com/clibs/clib/wiki/Packages";
+static char       *opt_source             = "github-clibs";
+static char       *opt_cachefile          = "clib-search-github.cache";
 
 static void setup_args(command_t *self, int argc, char **argv) {
   void setopt_nocache(command_t *self) {
@@ -30,11 +32,22 @@ static void setup_args(command_t *self, int argc, char **argv) {
   }
   void setopt_url(command_t *self) {
     opt_url = (char *) self->arg;
-    debug(&debugger, "set mkopts: %s", opt_url);
+    debug(&debugger, "set url: %s", opt_url);
   }
+  void setopt_source(command_t *self) {
+    opt_source = (char *) self->arg;
+    debug(&debugger, "set source: %s", opt_source);
+  }
+  void setopt_cachefile(command_t *self) {
+    opt_cachefile = (char *) self->arg;
+    debug(&debugger, "set source: %s", opt_cachefile);
+  }
+  
   self->usage = "[options] [query ...]";
-  command_option(self, "-c", "--skip-cache",  "skip the search cache", setopt_nocache);  
-  command_option(self, "-u", "--url [url]",   "set the url to fetch from", setopt_nocache);  
+  command_option(self, "-c", "--skip-cache",      "skip the search cache", setopt_nocache);  
+  command_option(self, "-f", "--cache-file",      "set the cache file name", setopt_cachefile);  
+  command_option(self, "-u", "--url [url]",       "set the url to fetch from", setopt_url);  
+  command_option(self, "-s", "--source [source]", "text string to denote source", setopt_source);  
   command_parse(self, argc, argv);
   for (int i = 0; i < self->argc; i++) case_lower(self->argv[i]);  
 }
@@ -50,7 +63,7 @@ static char * clib_search_file(void) {
   }
 
   debug(&debugger, "tempdir: %s", temp);
-  int rc = asprintf(&file, "%s/%s", temp, clib_search_cache);
+  int rc = asprintf(&file, "%s/%s", temp, opt_cachefile);
   if (-1 == rc) {
     logger_error("error", "asprintf() out of memory");
     free(temp);
@@ -141,8 +154,9 @@ int main(int argc, char *argv[]) {
   list_iterator_destroy(it);
   list_destroy(pkgs);
   
-  json_object_set_value(rootobj, "pkglist", pkgarrval);
-  json_object_set_string(rootobj, "program", programstr);
+  json_object_set_value(rootobj,  "pkglist",  pkgarrval);
+  json_object_set_string(rootobj, "source",   opt_source);
+  json_object_set_string(rootobj, "type",     "github");
   
   serialized_string = json_serialize_to_string(rootval);
   printf("%s\n", serialized_string);
