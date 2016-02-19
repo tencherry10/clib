@@ -2,11 +2,11 @@
 
 DONE
 - [x] search for clib-* relative to clib executable path [linux]
-- [x] change it to point to my own package list
+- [x] change it to point to my own package list (this is obsolete now, b/c i can use multiple lists w/ clib-search-* capability below)
+- [x] refactor the system so that clib-search calls clib-search-<source> where source is github / bitbucket or some other private source
 
 TODO
 - [ ] need to test clib-* relative to clib executable path under windows
-- [ ] refactor the system so that clib-search calls clib-search-<source> where source is github / bitbucket or some other private source
 - [ ] likewise refactor the clib-install system so that there are clib-install-source where source is github / bitbucket or some other private source
 
 # clib(1)
