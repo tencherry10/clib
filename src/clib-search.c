@@ -23,7 +23,9 @@ typedef kvec_t(char*) string_vec_t;
 static debug_t  debugger;
 static int      opt_color = 1;
 static int      opt_cache = 1;
-
+static cc_color_t fg_color_highlight  = CC_FG_DARK_CYAN;
+static cc_color_t fg_color_text       = CC_FG_DARK_GRAY;  
+  
 static void setup_args(command_t *self, int argc, char **argv) {
   void setopt_nocache(command_t *self) {
     opt_cache = 0;
@@ -38,20 +40,19 @@ static void setup_args(command_t *self, int argc, char **argv) {
   command_option(self, "-n", "--no-color",    "don't colorize output", setopt_nocolor);
   command_parse(self, argc, argv);
   for (int i = 0; i < self->argc; i++) case_lower(self->argv[i]);  
-  //~ // set color theme
-  //~ cc_color_t fg_color_highlight = opt_color ? CC_FG_DARK_CYAN : CC_FG_NONE;
-  //~ cc_color_t fg_color_text = opt_color ? CC_FG_DARK_GRAY : CC_FG_NONE;  
+  // set color theme
+  fg_color_highlight  = opt_color ? CC_FG_DARK_CYAN : CC_FG_NONE;
+  fg_color_text       = opt_color ? CC_FG_DARK_GRAY : CC_FG_NONE;  
 }
 
-#if 0
-static int matches(int count, char *args[], wiki_package_t *pkg) {
+static int matches(int count, char *args[], JSON_Object *pkg) {
   // Display all packages if there's no query
   if (0 == count) return 1;
 
   char *name = NULL;
   char *description = NULL;
 
-  name = clib_package_parse_name(pkg->repo);
+  name = clib_package_parse_name(json_object_get_string(pkg,"repo"));
   if (NULL == name) goto fail;
   case_lower(name);
   for (int i = 0; i < count; i++) {
@@ -61,7 +62,7 @@ static int matches(int count, char *args[], wiki_package_t *pkg) {
     }
   }
 
-  description = strdup(pkg->description);
+  description = strdup(json_object_get_string(pkg,"desc"));
   if (NULL == description) goto fail;
   case_lower(description);
   for (int i = 0; i < count; i++) {
@@ -77,12 +78,11 @@ fail:
   free(description);
   return 0;
 }
-#endif
 
 string_vec_t exec_that_starts_with(const char *prefix) {
   FILE          *cmdfp;
   char          cmdlinebuf[1024] = {0};
-  const char    *cmdfmt = "IFS=:; find $PATH -maxdepth 1 -executable -type f -printf '%%f\\n' | sort | grep -e \"^%s\"";
+  const char    *cmdfmt = "IFS=:; find $PATH -maxdepth 1 -executable -type f -printf '%%f\\n' 2> /dev/null | sort | grep -e \"^%s\"";
   char          *cmdstr = NULL;
   char          *cmd;
   string_vec_t  ret     = {0,0,0};
@@ -127,6 +127,12 @@ sds run_cmd(sds s, const char * cmd) {
   return s;
 }
 
+void json_array_concat(JSON_Array * dest, JSON_Array * src) {
+  for(size_t i = 0 ; i < json_array_get_count(src) ; i++) {
+    json_array_append_value(dest, json_value_deep_copy(json_array_get_value(src, i)));
+  }
+}
+
 int main(int argc, char *argv[]) {
   command_t program;
   debug_init(&debugger, "clib-search");
@@ -135,21 +141,39 @@ int main(int argc, char *argv[]) {
   string_vec_t cmd_list = exec_that_starts_with("clib-search-");
   
   sds s = sdsempty();
+  JSON_Value * allpkgs = json_value_init_array();
   for(int i = 0 ; i < kv_size(cmd_list) ; i++) {
     char *  cmd = kv_A(cmd_list, i);
     char    cmdbuf[strlen(cmd) + 16];
     sprintf(cmdbuf, "%s %s", cmd, opt_cache ? "" : "-c");
     s = run_cmd(s, cmdbuf);
     JSON_Value * parsed = json_parse_string(s);
-    printf("%s\n", s);
+    json_array_concat(
+      json_array(allpkgs), 
+      json_object_get_array(json_object(parsed), "pkglist"));
     json_value_free(parsed);
   }
   
+  printf("\n");
+  for(size_t i = 0 ; i < json_array_get_count(json_array(allpkgs)) ; i++) {
+    JSON_Object * pkg = json_array_get_object(json_array(allpkgs), i);
+    if (matches(program.argc, program.argv, pkg)) {
+      cc_fprintf(fg_color_highlight, stdout, "  %s\n", json_object_get_string(pkg, "repo"));
+      printf("  url: ");
+      cc_fprintf(fg_color_text, stdout, "%s\n", json_object_get_string(pkg, "url"));
+      printf("  desc: ");
+      cc_fprintf(fg_color_text, stdout, "%s\n", json_object_get_string(pkg, "desc"));
+      printf("\n");
+    } else {
+      debug(&debugger, "skipped package %s", json_object_get_string(pkg, "repo"));
+    }
+  }
   
+  json_value_free(allpkgs);
+  sdsfree(s);
   for(int i = 0 ; i < kv_size(cmd_list) ; i++) {
     free(kv_A(cmd_list, i));
   }
-  
   kv_destroy(cmd_list);
   command_free(&program);
   return 0;
