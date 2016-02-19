@@ -59,7 +59,7 @@ static int matches(int count, char *args[], JSON_Object *pkg) {
   char *name = NULL;
   char *description = NULL;
 
-  name = clib_package_parse_name(json_object_get_string(pkg,"repo"));
+  name = strdup(json_object_get_string(pkg,"repo"));
   if (NULL == name) goto fail;
   case_lower(name);
   for (int i = 0; i < count; i++) {
