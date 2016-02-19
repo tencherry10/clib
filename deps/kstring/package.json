@@ -1,0 +1,9 @@
+{
+  "name": "kstring",
+  "version": "0.0.1",
+  "repo": "tencherry10/kstring",
+  "description": "clib enabled kstring (from klib)",
+  "keywords": ["data structure"],
+  "license": "MIT",
+  "src": ["kstring.h", "kstring.c"]
+}
