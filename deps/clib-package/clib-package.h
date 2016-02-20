@@ -24,6 +24,7 @@ typedef struct {
   char *json;
   char *license;
   char *name;
+  char *prepare;
   char *repo;
   char *repo_name;
   char *url;
@@ -32,6 +33,7 @@ typedef struct {
   list_t *dependencies;
   list_t *development;
   list_t *src;
+  list_t *prep_src;
 } clib_package_t;
 
 clib_package_t *

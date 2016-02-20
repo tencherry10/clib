@@ -21,7 +21,8 @@
 #include "logger/logger.h"
 #include "parse-repo/parse-repo.h"
 #include "debug/debug.h"
-
+#include "sds/sds.h"
+#include "tempdir/tempdir.h"
 #include "clib-package.h"
 
 #ifndef DEFAULT_REPO_VERSION
@@ -254,6 +255,7 @@ clib_package_new(const char *json, int verbose) {
   JSON_Value *root = NULL;
   JSON_Object *json_object = NULL;
   JSON_Array *src = NULL;
+  JSON_Array *prep_src = NULL;
   JSON_Object *deps = NULL;
   JSON_Object *devs = NULL;
   int error = 1;
@@ -279,6 +281,7 @@ clib_package_new(const char *json, int verbose) {
   pkg->description = json_object_get_string_safe(json_object, "description");
   pkg->install = json_object_get_string_safe(json_object, "install");
   pkg->makefile = json_object_get_string_safe(json_object, "makefile");
+  pkg->prepare = json_object_get_string_safe(json_object, "prepare");
 
   _debug("creating package: %s", pkg->repo);
 
@@ -306,6 +309,20 @@ clib_package_new(const char *json, int verbose) {
     _debug("no src files listed in package.json");
     pkg->src = NULL;
   }
+
+  if ((prep_src = json_object_get_array(json_object, "prepared_src"))) {
+    if (!(pkg->prep_src = list_new())) goto cleanup;
+    pkg->prep_src->free = free;
+    for (unsigned int i = 0; i < json_array_get_count(prep_src); i++) {
+      char *file = json_array_get_string_safe(prep_src, i);
+      _debug("prep_src file: %s", file);
+      if (!file) goto cleanup;
+      if (!(list_rpush(pkg->prep_src, list_node_new(file)))) goto cleanup;
+    }
+  } else {
+    _debug("no prep_src files listed in package.json");
+    pkg->prep_src = NULL;
+  }  
 
   if ((deps = json_object_get_object(json_object, "dependencies"))) {
     if (!(pkg->dependencies = parse_package_deps(deps))) {
@@ -598,7 +615,7 @@ clib_package_install(clib_package_t *pkg, const char *dir, int verbose) {
   char *package_json = NULL;
   list_iterator_t *iterator = NULL;
   int rc = -1;
-
+  char *tmp = gettempdir();
   if (!pkg || !dir) goto cleanup;
   if (!(pkg_dir = path_join(dir, pkg->name))) goto cleanup;
 
@@ -628,7 +645,39 @@ clib_package_install(clib_package_t *pkg, const char *dir, int verbose) {
       goto cleanup;
     }
   }
-
+  
+  if (pkg->prepare) {
+    sds s = sdsempty();
+    s = sdscatfmt(s, 
+        "cd %s && rm -rf %s-%s" 
+        " && wget https://github.com/%s/archive/master.tar.gz -O -"
+        " | tar zx"
+      , tmp, pkg->name, "master", pkg->repo);
+    _debug("prepare cmd: %s", s);
+    rc = system(s);
+    if (0 != rc) goto cleanup;    
+    sdsclear(s);
+    s = sdscatfmt(s, "cd %s/%s-%s && %s", tmp, pkg->name, "master", pkg->prepare);
+    _debug("prepare cmd: %s", s);
+    rc = system(s);
+    if (0 != rc) goto cleanup;        
+    sdsfree(s);
+  }
+  
+  if (pkg->prep_src) {
+    sds s = sdsempty();    
+    iterator = list_iterator_new(pkg->prep_src, LIST_HEAD);
+    list_node_t *prep_src;
+    while ((prep_src = list_iterator_next(iterator))) {
+      sdsclear(s);
+      s = sdscatfmt(s, "cp %s/%s-%s/%s %s", tmp, pkg->name, "master", prep_src->val, pkg_dir);
+      _debug("prepare_src copy: %s", s);
+      rc = system(s);
+      if (0 != rc) goto cleanup;          
+    }
+    sdsfree(s);    
+  }  
+  
   // if no sources are listed, just install
   if (NULL == pkg->src) goto install;
 
@@ -647,6 +696,7 @@ install:
   rc = clib_package_install_dependencies(pkg, dir, verbose);
 
 cleanup:
+  if (tmp) free(tmp);
   if (pkg_dir) free(pkg_dir);
   if (package_json) free(package_json);
   if (iterator) list_iterator_destroy(iterator);
