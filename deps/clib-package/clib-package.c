@@ -37,10 +37,10 @@
 
 debug_t _debugger;
 
-#define _debug(...) ({                                         \
-  if (!(_debugger.name)) debug_init(&_debugger, "clib-package"); \
-  debug(&_debugger, __VA_ARGS__);                               \
-})
+#define _debug(...) do {                                          \
+  if (!(_debugger.name)) debug_init(&_debugger, "clib-package");  \
+  debug(&_debugger, __VA_ARGS__);                                 \
+} while(0)
 
 /**
  * Pre-declare prototypes.

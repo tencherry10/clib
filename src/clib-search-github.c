@@ -25,24 +25,28 @@ static char       *opt_url                = "https://github.com/clibs/clib/wiki/
 static char       *opt_source             = "github-clibs";
 static char       *opt_cachefile          = "clib-search-github.cache";
 
+
+static void setopt_nocache(command_t *self) {
+  opt_cache = 0;
+  debug(&debugger, "set enable cache: %d", opt_cache);
+}
+
+static void setopt_url(command_t *self) {
+  opt_url = (char *) self->arg;
+  debug(&debugger, "set url: %s", opt_url);
+}
+
+static void setopt_source(command_t *self) {
+  opt_source = (char *) self->arg;
+  debug(&debugger, "set source: %s", opt_source);
+}
+
+static void setopt_cachefile(command_t *self) {
+  opt_cachefile = (char *) self->arg;
+  debug(&debugger, "set source: %s", opt_cachefile);
+}
+
 static void setup_args(command_t *self, int argc, char **argv) {
-  void setopt_nocache(command_t *self) {
-    opt_cache = 0;
-    debug(&debugger, "set enable cache: %d", opt_cache);
-  }
-  void setopt_url(command_t *self) {
-    opt_url = (char *) self->arg;
-    debug(&debugger, "set url: %s", opt_url);
-  }
-  void setopt_source(command_t *self) {
-    opt_source = (char *) self->arg;
-    debug(&debugger, "set source: %s", opt_source);
-  }
-  void setopt_cachefile(command_t *self) {
-    opt_cachefile = (char *) self->arg;
-    debug(&debugger, "set source: %s", opt_cachefile);
-  }
-  
   self->usage = "[options] [query ...]";
   command_option(self, "-c", "--skip-cache",      "skip the search cache", setopt_nocache);  
   command_option(self, "-f", "--cache-file",      "set the cache file name", setopt_cachefile);  

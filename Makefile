@@ -26,7 +26,7 @@ SRC  = $(wildcard src/*.c)
 DEPS = $(wildcard deps/*/*.c)
 OBJS = $(DEPS:.c=.o)
 
-CFLAGS  = -std=c99 -Ideps -Wall -Wno-unused-function -U__STRICT_ANSI__
+CFLAGS  = -std=c99 -Ideps -Wall -Wpedantic -Wno-unused-function -Werror -U__STRICT_ANSI__
 
 all: $(BINS)
 
@@ -34,7 +34,7 @@ $(BINS): $(SRC) $(OBJS)
 	$(CC) $(CFLAGS) -o $@ src/$(@:.exe=).c $(OBJS) $(LDFLAGS)
 
 %.o: %.c
-	$(CC) $< -c -o $@ $(CFLAGS)
+	$(CC) $(CFLAGS) $< -c -o $@ $(CFLAGS)
 
 clean:
 	$(foreach c, $(BINS), $(RM) $(c);)

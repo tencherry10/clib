@@ -113,10 +113,10 @@ e1:
   return 1;
 }
 
-#define E_FORMAT(...) ({      \
+#define E_FORMAT(...) do {    \
   rc = asprintf(__VA_ARGS__); \
   if (-1 == rc) goto cleanup; \
-});
+} while(0)
 
 static int
 executable(clib_package_t *pkg) {

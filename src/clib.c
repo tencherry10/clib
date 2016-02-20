@@ -41,13 +41,13 @@ static const char *usage =
   "    help <cmd>         Display help for cmd\n"
   "";
 
-#define format(...) ({                               \
+#define format(...) do {                             \
   if (-1 == asprintf(__VA_ARGS__)) {                 \
     rc = 1;                                          \
     fprintf(stderr, "Memory allocation failure\n");  \
     goto cleanup;                                    \
   }                                                  \
-})
+} while(0)
 
 int
 main(int argc, const char **argv) {

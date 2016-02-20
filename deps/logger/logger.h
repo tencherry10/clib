@@ -20,33 +20,33 @@
  * Log an info message to stdout.
  */
 
-#define logger_info(type, ...) ({                          \
+#define logger_info(type, ...) do {                        \
   cc_fprintf(CC_FG_CYAN, stdout, CLIB_LOGGER_FMT, type);   \
   fprintf(stdout, " : ");                                  \
   cc_fprintf(CC_FG_DARK_GRAY, stdout, __VA_ARGS__);        \
   fprintf(stdout, "\n");                                   \
-});
+} while(0)
 
 /**
  * Log a warning to stdout.
  */
 
-#define logger_warn(type, ...) ({                               \
+#define logger_warn(type, ...) do {                             \
   cc_fprintf(CC_FG_DARK_YELLOW, stdout, CLIB_LOGGER_FMT, type); \
   fprintf(stdout, " : ");                                       \
   cc_fprintf(CC_FG_DARK_GRAY, stdout, __VA_ARGS__);             \
   fprintf(stdout, "\n");                                        \
-});
+} while(0)
 
 /**
  * Log an error message to stderr.
  */
 
-#define logger_error(type, ...) ({                           \
+#define logger_error(type, ...) do {                         \
   cc_fprintf(CC_FG_DARK_RED, stderr, CLIB_LOGGER_FMT, type); \
   fprintf(stderr, " : ");                                    \
   cc_fprintf(CC_FG_DARK_GRAY, stderr, __VA_ARGS__);          \
   fprintf(stderr, "\n");                                     \
-});
+} while(0)
 
 #endif

@@ -26,21 +26,23 @@ static int      opt_color = 1;
 static int      opt_cache = 1;
 static cc_color_t fg_color_highlight  = CC_FG_DARK_CYAN;
 static cc_color_t fg_color_text       = CC_FG_DARK_GRAY;  
-  
+
+static void setopt_nocache(command_t *self) {
+  opt_cache = 0;
+  debug(&debugger, "set enable cache: %d", opt_cache);
+}
+
+static void setopt_nocolor(command_t *self) {
+  opt_color = 0;
+  debug(&debugger, "set opt_color = %d", opt_color);
+}
+
+static void setopt_json(command_t *self) {
+  opt_json = 1;
+  debug(&debugger, "set opt_json = %d", opt_json);
+}
+
 static void setup_args(command_t *self, int argc, char **argv) {
-  void setopt_nocache(command_t *self) {
-    opt_cache = 0;
-    debug(&debugger, "set enable cache: %d", opt_cache);
-  }
-  void setopt_nocolor(command_t *self) {
-    opt_color = 0;
-    debug(&debugger, "set opt_color = %d", opt_color);
-  }
-  void setopt_json(command_t *self) {
-    opt_json = 1;
-    debug(&debugger, "set opt_json = %d", opt_json);
-  }
-  
   self->usage = "[options] [query ...]";
   command_option(self, "-c", "--skip-cache",  "skip the search cache", setopt_nocache);  
   command_option(self, "-n", "--no-color",    "don't colorize output", setopt_nocolor);
