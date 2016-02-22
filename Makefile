@@ -1,5 +1,5 @@
 
-CC     ?= cc
+CC      = gcc
 PREFIX ?= /usr/local
 
 ifeq ($(shell uname -o),Cygwin)
@@ -26,7 +26,8 @@ SRC  = $(wildcard src/*.c)
 DEPS = $(wildcard deps/*/*.c)
 OBJS = $(DEPS:.c=.o)
 
-CFLAGS  = -std=c99 -Ideps -Wall -Wpedantic -Wno-unused-function -Werror -U__STRICT_ANSI__
+CFLAGS  = -std=c99 -Ideps -Wall -Wpedantic -Wno-unused-function -Werror  -U__STRICT_ANSI__
+CFLAGS += -Wextra -Wno-unused-parameter -Wno-sign-compare
 
 all: $(BINS)
 

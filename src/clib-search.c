@@ -127,10 +127,6 @@ sds run_cmd(sds s, const char * cmd) {
     s = sdsMakeRoomFor(s, 4096);
     size_t oldlen = sdslen(s);
     size_t numread = fread(s + oldlen, 1, 4096, cmdfp);
-    if(numread < 0) {
-      sdsclear(s);
-      return s;
-    }
     sdsIncrLen(s, numread);
   }
   return s;
