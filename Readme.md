@@ -4,6 +4,7 @@ DONE
 - [x] search for clib-* relative to clib executable path [linux]
 - [x] change it to point to my own package list (this is obsolete now, b/c i can use multiple lists w/ clib-search-* capability below)
 - [x] refactor the system so that clib-search calls clib-search-<source> where source is github / bitbucket or some other private source
+- [x] fix DEBUG wildcard comp bug
 
 TODO
 - [ ] need to test clib-* relative to clib executable path under windows
