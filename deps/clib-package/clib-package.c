@@ -649,15 +649,12 @@ clib_package_install(clib_package_t *pkg, const char *dir, int verbose) {
   if (pkg->prepare) {
     sds s = sdsempty();
     s = sdscatfmt(s, 
-        "cd %s && rm -rf %s-%s" 
-        " && wget https://github.com/%s/archive/master.tar.gz -O -"
-        " | tar zx"
-      , tmp, pkg->name, "master", pkg->repo);
+        "cd %s && rm -rf %s/%s && git clone https://github.com/%s.git", tmp, tmp, pkg->name, pkg->repo);
     _debug("prepare cmd: %s", s);
     rc = system(s);
     if (0 != rc) goto cleanup;    
     sdsclear(s);
-    s = sdscatfmt(s, "cd %s/%s-%s && %s", tmp, pkg->name, "master", pkg->prepare);
+    s = sdscatfmt(s, "cd %s/%s && %s", tmp, pkg->name, pkg->prepare);
     _debug("prepare cmd: %s", s);
     rc = system(s);
     if (0 != rc) goto cleanup;        
@@ -670,7 +667,7 @@ clib_package_install(clib_package_t *pkg, const char *dir, int verbose) {
     list_node_t *prep_src;
     while ((prep_src = list_iterator_next(iterator))) {
       sdsclear(s);
-      s = sdscatfmt(s, "cp %s/%s-%s/%s %s", tmp, pkg->name, "master", prep_src->val, pkg_dir);
+      s = sdscatfmt(s, "cp %s/%s/%s %s", tmp, pkg->name, prep_src->val, pkg_dir);
       _debug("prepare_src copy: %s", s);
       rc = system(s);
       if (0 != rc) goto cleanup;          
