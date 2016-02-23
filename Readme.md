@@ -8,6 +8,7 @@ DONE
 
 TODO
 - [ ] likewise refactor the clib-install system so that there are clib-install-source where source is github / bitbucket or some other private source
+- [ ] add ability to install from local package directory
 - [ ] need to add a deploy subtask and subsequently a deploy BBB and/or deploy docker
 - [ ] need to add ability to install a version from the source code pinned to a version in github
 
