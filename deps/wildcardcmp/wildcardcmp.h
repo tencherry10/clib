@@ -8,7 +8,13 @@
  * the two match.
  */
 
-int
-wildcardcmp(const char *pattern, const char *string);
+int wildcardcmp(const char *pattern, const char *string);
 
+//This function compares text strings, one of which can have wildcards ('*').
+int better_wildcardcmp (
+  const char  *pTameText,       // A string without wildcards
+  const char  *pWildText,       // A (potentially) corresponding string with wildcards
+  int         bCaseSensitive,   // By default, match on 'X' vs 'x'
+  char        cAltTerminator);  // For function names, for example, you can stop at the first '('
+  
 #endif

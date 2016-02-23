@@ -2,46 +2,93 @@
 #include <stdlib.h>
 #include "wildcardcmp.h"
 
-int
-wildcardcmp(const char *pattern, const char *string) {
-  const char *w = NULL; // last `*`
-  const char *s = NULL; // last checked char
+int wildcardcmp(const char *pattern, const char *string) {
+  return better_wildcardcmp(string, pattern, 1, '\0');
+}
 
-  // malformed
-  if (!pattern || !string) return 0;
+//This function compares text strings, one of which can have wildcards ('*').
+int better_wildcardcmp (
+  const char  *pTameText,       // A string without wildcards
+  const char  *pWildText,       // A (potentially) corresponding string with wildcards
+  int         bCaseSensitive,   // By default, match on 'X' vs 'x'
+  char        cAltTerminator)   // For function names, for example, you can stop at the first '('
+{
+  int         bMatch = 1;
+  const char  *pAfterLastWild = NULL; // The location after the last '*', if we've encountered one
+  const char  *pAfterLastTame = NULL; // The location in the tame string, from which we started after last wildcard
+  char        t, w;
 
-  // loop 1 char at a time
+  // Walk the text strings one character at a time.
   while (1) {
-    if (!*string) {
-      if (!*pattern) return 1;
-      if ('*' == *pattern) {
-        pattern++;
+    t = *pTameText;
+    w = *pWildText;
+
+    // How do you match a unique text string?
+    if (!t || t == cAltTerminator) {
+      // Easy: unique up on it!
+      if (!w || w == cAltTerminator) {
+        break;                                   // "x" matches "x"
+      } else if (w == '*') {
+        pWildText++;
+        continue;                           // "x*" matches "x" or "xy"
+      } else if (pAfterLastTame) {
+        if (!(*pAfterLastTame) || *pAfterLastTame == cAltTerminator) {
+          bMatch = 0;
+          break;
+        }
+        pTameText = pAfterLastTame++;
+        pWildText = pAfterLastWild;
         continue;
       }
-      if (!*s) return 0;
-      string = s++;
-      pattern = w;
-      continue;
+
+      bMatch = 0;
+      break;                                           // "x" doesn't match "xy"
     } else {
-      if (*pattern != *string) {
-        if ('*' == *pattern) {
-          w = ++pattern;
-          s = string;
-          // "*" -> "foobar"
-          if (*pattern) continue;
-          return 1;
-        } else if (w) {
-          string++;
-          // "*ooba*" -> "foobar"
-          continue;
+      if (!bCaseSensitive) {
+        // Lowercase the characters to be compared.
+        if (t >= 'A' && t <= 'Z') {
+          t += ('a' - 'A');
         }
-        return 0;
+
+        if (w >= 'A' && w <= 'Z') {
+          w += ('a' - 'A');
+        }
+      }
+
+      // How do you match a tame text string?
+      if (t != w) {
+        // The tame way: unique up on it!
+        if (w == '*') {
+          pAfterLastWild = ++pWildText;
+          pAfterLastTame = pTameText;
+          w = *pWildText;
+          if (!w || w == cAltTerminator) {
+            break;                           // "*" matches "x"
+          }
+          continue;                           // "*y" matches "xy"
+        } else if (pAfterLastWild) {
+          if (pAfterLastWild != pWildText) {
+            pWildText = pAfterLastWild;
+            w = *pWildText;
+            
+            if (!bCaseSensitive && w >= 'A' && w <= 'Z') {
+              w += ('a' - 'A');
+            }
+
+            if (t == w) {
+              pWildText++;
+            }
+          }
+          pTameText++;
+          continue;                           // "*sip*" matches "mississippi"
+        } else {
+          bMatch = 0;
+          break;                                   // "x" doesn't match "y"
+        }
       }
     }
-
-    string++;
-    pattern++;
+    pTameText++;
+    pWildText++;
   }
-
-  return 1;
+  return bMatch;
 }
