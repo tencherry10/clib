@@ -7,8 +7,11 @@ DONE
 - [x] fix DEBUG wildcard comp bug
 
 TODO
-- [ ] need to test clib-* relative to clib executable path under windows
 - [ ] likewise refactor the clib-install system so that there are clib-install-source where source is github / bitbucket or some other private source
+- [ ] need to add a deploy subtask and subsequently a deploy BBB and/or deploy docker
+
+MAYBE
+- [ ] need to test clib-* relative to clib executable path under windows
 
 # clib(1)
 
